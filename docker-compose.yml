@@ -1,0 +1,105 @@
+version: '3'
+
+services:
+    database:
+      container_name: mysql_db
+      image: mysql
+      command: mysqld --default-authentication-plugin=mysql_native_password
+
+      environment:
+         - MYSQL_DATABASE=nhdb
+         - MYSQL_USER=admin
+         - MYSQL_ROOT_PASSWORD=admin
+         - MYSQL_PASSWORD=admin
+
+      networks:
+        terminator:
+          ipv4_address: 13.14.0.100
+
+      volumes:
+         - ./Database/dbdt:/var/lib/mysql
+         - ./Database/initdb:/docker-entrypoint-initdb.d/:ro
+
+    ride-service-dhaka:
+      container_name: ride_service_dh
+      build: ./RideSharingService
+      restart: always
+      depends_on:
+        - communication-service-dhaka
+      networks:
+        - terminator
+
+
+    ride-service-comilla:
+      container_name: ride_service_ca
+      build: ./RideSharingService
+      restart: always
+      depends_on:
+        - communication-service-comilla
+      networks:
+        - terminator
+
+    communication-service-dhaka:
+      container_name: communication_service_dh
+      build: ./CommunicationService
+      restart: always
+      expose:
+        - 7070
+      networks:
+        terminator:
+          ipv4_address: 13.14.0.51
+
+    communication-service-comilla:
+      container_name: communication_service_ch
+      build: ./CommunicationService
+      restart: always
+      expose:
+        - 7070
+      networks:
+        terminator:
+          ipv4_address: 13.14.0.52
+
+    rating-service:
+      container_name: rating_service
+      build: ./Rating Service
+      restart: always
+      depends_on:
+        - database
+      networks:
+        - terminator
+
+
+    nginx-dhaka:
+      container_name: nginx_dh
+      build: ./nginx
+      restart: always
+      environment:
+        - rs_server=ride-service-dhaka
+      command: /bin/sh -c "envsubst < /etc/nginx/conf.d/nginx.conf.template > /etc/nginx/conf.d/nginx.conf && nginx -g 'daemon off;'"
+      networks:
+        terminator:
+          ipv4_address: 13.14.0.13
+      depends_on:
+        - ride-service-dhaka
+        - rating-service
+
+    nginx-comilla:
+      container_name: nginx_ch
+      build: ./nginx
+      restart: always
+      environment:
+        - rs_server=ride-service-comilla
+      command: /bin/sh -c "envsubst < /etc/nginx/conf.d/nginx.conf.template > /etc/nginx/conf.d/nginx.conf && nginx -g 'daemon off;'"
+      networks:
+        terminator:
+          ipv4_address: 13.14.0.14
+      depends_on:
+        - ride-service-comilla
+        - rating-service
+
+
+networks:
+  terminator:
+    ipam:
+      config:
+        - subnet: 13.14.0.0/24

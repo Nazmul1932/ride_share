@@ -1,0 +1,14 @@
+server {
+
+    listen 80;
+
+    location /driver {
+        proxy_pass http://${rs_server}:6001;
+    }
+    location /rider {
+        proxy_pass http://${rs_server}:6001;
+    }
+    location /rating {
+        proxy_pass http://rating-service:7000;
+    }
+}
